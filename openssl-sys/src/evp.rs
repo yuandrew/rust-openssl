@@ -25,6 +25,9 @@ pub const EVP_CTRL_GCM_SET_IVLEN: c_int = 0x9;
 pub const EVP_CTRL_GCM_GET_TAG: c_int = 0x10;
 pub const EVP_CTRL_GCM_SET_TAG: c_int = 0x11;
 
+#[cfg(ossl111)]
+pub enum KDF {}
+
 pub unsafe fn EVP_get_digestbynid(type_: c_int) -> *const EVP_MD {
     EVP_get_digestbyname(OBJ_nid2sn(type_))
 }
@@ -584,4 +587,19 @@ cfg_if! {
 extern "C" {
     pub fn EVP_EncodeBlock(dst: *mut c_uchar, src: *const c_uchar, src_len: c_int) -> c_int;
     pub fn EVP_DecodeBlock(dst: *mut c_uchar, src: *const c_uchar, src_len: c_int) -> c_int;
+}
+
+cfg_if! {
+    if #[cfg(ossl300)] {
+        extern "C" {
+            pub fn EVP_KDF_CTX_new_id(_type: c_int) -> *mut KDF;
+            pub fn EVP_KDF_CTX_free(ctx: *mut KDF);
+
+            pub fn EVP_KDF_reset(ctx: *mut KDF);
+            pub fn EVP_KDF_ctrl(ctx: *mut KDF, cmd: c_int, ...) -> c_int;
+            pub fn EVP_KDF_ctrl_str(ctx: *mut KDF, type_: *const c_char, value: *const c_char) -> c_int;
+            pub fn EVP_KDF_size(ctx: *mut KDF) -> libc::size_t;
+            pub fn EVP_KDF_derive(ctx: *mut KDF, key: *mut libc::c_uchar, keylen: libc::size_t) -> c_int;
+        }
+    }
 }
