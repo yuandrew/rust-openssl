@@ -28,6 +28,9 @@ pub const EVP_CTRL_GCM_SET_TAG: c_int = 0x11;
 #[cfg(ossl111)]
 pub enum KDF {}
 
+#[cfg(ossl111)]
+pub enum KDF_CTX {}
+
 pub unsafe fn EVP_get_digestbynid(type_: c_int) -> *const EVP_MD {
     EVP_get_digestbyname(OBJ_nid2sn(type_))
 }
@@ -279,6 +282,35 @@ const_ptr_api! {
             sigret: #[const_ptr_if(any(ossl102, libressl280))] c_uchar,
             siglen: size_t,
         ) -> c_int;
+    }
+}
+
+pub const OSSL_PARAM_INTEGER: c_uchar = 1;
+pub const OSSL_PARAM_UNSIGNED_INTEGER: c_uchar = 2;
+pub const OSSL_PARAM_REAL: c_uchar = 3;
+pub const OSSL_PARAM_UTF8_STRING: c_uchar = 4;
+pub const OSSL_PARAM_OCTET_STRING: c_uchar = 5;
+pub const OSSL_PARAM_UTF8_PTR: c_uchar = 6;
+pub const OSSL_PARAM_OCTET_PTR: c_uchar = 7;
+
+cfg_if! {
+    if #[cfg(ossl300)] {
+        extern "C" {
+            pub fn EVP_KDF_fetch(
+                libctx: *mut OSSL_LIB_CTX,
+                algorithm: *const c_char,
+                properties: *const c_char
+            ) -> *mut EVP_KDF;
+            pub fn EVP_KDF_CTX_new(kdf: *const EVP_KDF) -> *mut KDF_CTX;
+            pub fn EVP_KDF_CTX_free(kdf: *mut EVP_KDF_CTX);
+
+            pub fn EVP_KDF_CTX_set_params(ctx: *mut EVP_KDF, params: OSSL_PARAM);
+
+            pub fn EVP_KDF_CTX_reset(ctx: *mut EVP_KDF_CTX);
+            pub fn EVP_KDF_CTX_get_kdf_size(ctx: *mut EVP_KDF_CTX) -> size_t;
+            pub fn EVP_KDF_CTX_kdf(ctx: *mut EVP_KDF_CTX) -> *const EVP_KDF;
+            pub fn EVP_KDF_derive(ctx: *mut EVP_KDF_CTX, out: *mut u8, n: size_t, params: *const OSSL_PARAM) -> c_int;
+        }
     }
 }
 
@@ -587,19 +619,4 @@ cfg_if! {
 extern "C" {
     pub fn EVP_EncodeBlock(dst: *mut c_uchar, src: *const c_uchar, src_len: c_int) -> c_int;
     pub fn EVP_DecodeBlock(dst: *mut c_uchar, src: *const c_uchar, src_len: c_int) -> c_int;
-}
-
-cfg_if! {
-    if #[cfg(ossl300)] {
-        extern "C" {
-            pub fn EVP_KDF_CTX_new_id(_type: c_int) -> *mut KDF;
-            pub fn EVP_KDF_CTX_free(ctx: *mut KDF);
-
-            pub fn EVP_KDF_reset(ctx: *mut KDF);
-            pub fn EVP_KDF_ctrl(ctx: *mut KDF, cmd: c_int, ...) -> c_int;
-            pub fn EVP_KDF_ctrl_str(ctx: *mut KDF, type_: *const c_char, value: *const c_char) -> c_int;
-            pub fn EVP_KDF_size(ctx: *mut KDF) -> libc::size_t;
-            pub fn EVP_KDF_derive(ctx: *mut KDF, key: *mut libc::c_uchar, keylen: libc::size_t) -> c_int;
-        }
-    }
 }
