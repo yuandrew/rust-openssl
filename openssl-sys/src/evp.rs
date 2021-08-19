@@ -104,6 +104,14 @@ cfg_if! {
     }
 }
 
+cfg_if! {
+    if #[cfg(ossl300)] {
+        extern "C" {
+            pub fn EVP_MD_name(md: *const EVP_MD) -> *const c_char;
+        }
+    }
+}
+
 extern "C" {
     pub fn EVP_DigestInit_ex(ctx: *mut EVP_MD_CTX, typ: *const EVP_MD, imple: *mut ENGINE)
         -> c_int;
@@ -301,7 +309,7 @@ cfg_if! {
                 algorithm: *const c_char,
                 properties: *const c_char
             ) -> *mut EVP_KDF;
-            pub fn EVP_KDF_CTX_new(kdf: *const EVP_KDF) -> *mut KDF_CTX;
+            pub fn EVP_KDF_CTX_new(kdf: *const EVP_KDF) -> *mut EVP_KDF_CTX;
             pub fn EVP_KDF_CTX_free(kdf: *mut EVP_KDF_CTX);
 
             pub fn EVP_KDF_CTX_set_params(ctx: *mut EVP_KDF, params: OSSL_PARAM);

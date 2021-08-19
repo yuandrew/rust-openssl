@@ -155,6 +155,8 @@ pub mod memcmp;
 pub mod nid;
 #[cfg(not(osslconf = "OPENSSL_NO_OCSP"))]
 pub mod ocsp;
+#[cfg(ossl300)]
+pub mod params;
 pub mod pkcs12;
 pub mod pkcs5;
 pub mod pkcs7;
@@ -172,6 +174,14 @@ pub mod version;
 pub mod x509;
 
 fn cvt_p<T>(r: *mut T) -> Result<*mut T, ErrorStack> {
+    if r.is_null() {
+        Err(ErrorStack::get())
+    } else {
+        Ok(r)
+    }
+}
+
+fn cvt_cp<T>(r: *const T) -> Result<*const T, ErrorStack> {
     if r.is_null() {
         Err(ErrorStack::get())
     } else {

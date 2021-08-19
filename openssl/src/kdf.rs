@@ -1,233 +1,237 @@
-use *;
+use std::error;
+use std::ffi::{CStr, CString, NulError};
+use std::fmt;
+use std::ptr;
+use std::str;
 
-/* KDF / PRF parameters */
-pub const OSSL_KDF_PARAM_SECRET: *const u8 = b"secret\0" as *const u8;
-pub const OSSL_KDF_PARAM_KEY: *const u8 = b"key\0" as *const u8;
-pub const OSSL_KDF_PARAM_SALT: *const u8 = b"salt\0" as *const u8;
-pub const OSSL_KDF_PARAM_PASSWORD: *const u8 = b"pass\0" as *const u8;
-pub const OSSL_KDF_PARAM_DIGEST: *const u8 = OSSL_ALG_PARAM_DIGEST;
-pub const OSSL_KDF_PARAM_CIPHER: *const u8 = OSSL_ALG_PARAM_CIPHER;
-pub const OSSL_KDF_PARAM_MAC: *const u8 = OSSL_ALG_PARAM_MAC;
-pub const OSSL_KDF_PARAM_MAC_SIZE: *const u8 = b"maclen\0" as *const u8;
-pub const OSSL_KDF_PARAM_PROPERTIES: *const u8 = OSSL_ALG_PARAM_PROPERTIES;
-pub const OSSL_KDF_PARAM_ITER: *const u8 = b"iter\0" as *const u8;
-pub const OSSL_KDF_PARAM_MODE: *const u8 = b"mode\0" as *const u8;
-pub const OSSL_KDF_PARAM_PKCS5: *const u8 = b"pkcs5\0" as *const u8;
-pub const OSSL_KDF_PARAM_UKM: *const u8 = b"ukm\0" as *const u8;
-pub const OSSL_KDF_PARAM_CEK_ALG: *const u8 = b"cekalg\0" as *const u8;
-pub const OSSL_KDF_PARAM_SCRYPT_N: *const u8 = b"n\0" as *const u8;
-pub const OSSL_KDF_PARAM_SCRYPT_R: *const u8 = b"r\0" as *const u8;
-pub const OSSL_KDF_PARAM_SCRYPT_P: *const u8 = b"p\0" as *const u8;
-pub const OSSL_KDF_PARAM_SCRYPT_MAXMEM: *const u8 = b"maxmem_bytes\0" as *const u8;
-pub const OSSL_KDF_PARAM_INFO: *const u8 = b"info\0" as *const u8;
-pub const OSSL_KDF_PARAM_SEED: *const u8 = b"seed\0" as *const u8;
-pub const OSSL_KDF_PARAM_SSHKDF_XCGHASH: *const u8 = b"xcghash\0" as *const u8;
-pub const OSSL_KDF_PARAM_SSHKDF_SESSION_ID: *const u8 = b"session_id\0" as *const u8;
-pub const OSSL_KDF_PARAM_SSHKDF_TYPE: *const u8 = b"type\0" as *const u8;
-pub const OSSL_KDF_PARAM_SIZE: *const u8 = b"size\0" as *const u8;
-pub const OSSL_KDF_PARAM_CONSTANT: *const u8 = b"constant\0" as *const u8;
-pub const OSSL_KDF_PARAM_PKCS12_ID: *const u8 = b"id\0" as *const u8;
-pub const OSSL_KDF_PARAM_KBKDF_USE_L: *const u8 = b"use-l\0" as *const u8;
-pub const OSSL_KDF_PARAM_KBKDF_USE_SEPARATOR: *const u8 = b"use-separator\0" as *const u8;
-pub const OSSL_KDF_PARAM_X942_PARTYUINFO: *const u8 = b"partyu-info\0" as *const u8;
-pub const OSSL_KDF_PARAM_X942_PARTYVINFO: *const u8 = b"partyv-info\0" as *const u8;
-pub const OSSL_KDF_PARAM_X942_SUPP_PUBINFO: *const u8 = b"supp-pubinfo\0" as *const u8;
-pub const OSSL_KDF_PARAM_X942_SUPP_PRIVINFO: *const u8 = b"supp-privinfo\0" as *const u8;
-pub const OSSL_KDF_PARAM_X942_USE_KEYBITS: *const u8 = b"use-keybits\0" as *const u8;
-
-/* Known KDF names */
-pub const OSSL_KDF_NAME_HKDF: *const u8 = b"HKDF\0" as *const u8;
-pub const OSSL_KDF_NAME_PBKDF2: *const u8 = b"PBKDF2\0" as *const u8;
-pub const OSSL_KDF_NAME_SCRYPT: *const u8 = b"SCRYPT\0" as *const u8;
-pub const OSSL_KDF_NAME_SSHKDF: *const u8 = b"SSHKDF\0" as *const u8;
-pub const OSSL_KDF_NAME_SSKDF: *const u8 = b"SSKDF\0" as *const u8;
-pub const OSSL_KDF_NAME_TLS1_PRF: *const u8 = b"TLS1-PRF\0" as *const u8;
-pub const OSSL_KDF_NAME_X942KDF_ASN1: *const u8 = b"X942KDF-ASN1\0" as *const u8;
-pub const OSSL_KDF_NAME_X942KDF_CONCAT: *const u8 = b"X942KDF-CONCAT\0" as *const u8;
-pub const OSSL_KDF_NAME_X963KDF: *const u8 = b"X963KDF\0" as *const u8;
-pub const OSSL_KDF_NAME_KBKDF: *const u8 = b"KBKDF\0" as *const u8;
-pub const OSSL_KDF_NAME_KRB5KDF: *const u8 = b"KRB5KDF\0" as *const u8;
-
-use libc::c_int;
-
+use crate::error::ErrorStack;
 use crate::hash::MessageDigest;
-
-type Result<T> = core::result::Result<T, ErrorStack>;
-
-foreign_type_and_impl_send_sync_kdf! {
-    type CType = ffi::KDF;
-    fn drop = ffi::EVP_KDF_CTX_free;
-
-    pub struct Kdf;
-
-    pub struct KdfRef;
-}
-
-#[allow(unused)]
-#[derive(Debug)]
-#[repr(i32)]
-enum KdfControlOption {
-    SetPass = 0x01,
-    SetSalt = 0x02,
-    SetIter = 0x03,
-    SetMd = 0x04,
-    SetKey = 0x05,
-    SetMaxmemBytes = 0x06,
-    SetTlsSecret = 0x07,
-    ResetTlsSeed = 0x08,
-    AddTlsSeed = 0x09,
-    ResetHkdfInfo = 0x0a,
-    AddHkdfInfo = 0x0b,
-    SetHkdfMode = 0x0c,
-    SetScryptN = 0x0d,
-    SetScryptR = 0x0e,
-    SetScryptP = 0x0f,
-    SetSshkdfXcghash = 0x10,
-    SetSshkdfSessionId = 0x11,
-    SetSshkdfType = 0x12,
-    SetKbMode = 0x13,
-    SetKbMacType = 0x14,
-    SetCipher = 0x15,
-    SetKbInfo = 0x16,
-    SetKbSeed = 0x17,
-    SetKrb5kdfConstant = 0x18,
-    SetSskdfInfo = 0x19,
-}
+use crate::params::{Params, ParamsBuilder};
+use crate::{cvt, cvt_cp, cvt_p};
 
 #[derive(Debug)]
-#[repr(i32)]
-pub enum KdfKbMode {
-    Counter = 0,
-    Feedback = 1,
+pub enum KDFError {
+    Utf8Error(str::Utf8Error),
+    NulError(NulError),
+    NoSuchKDF,
+    SSL(ErrorStack),
 }
 
-#[derive(Debug)]
-pub enum KdfType {
-    //PBKDF2,
-    //SCRYPT,
-    //TLS1_PRF,
-    //HKDF,
-    //SSHKDF,
-    KeyBased,
-    //KRB5KDF,
-    //SS,
+impl From<str::Utf8Error> for KDFError {
+    fn from(e: str::Utf8Error) -> Self {
+        KDFError::Utf8Error(e)
+    }
 }
 
-impl KdfType {
-    fn type_id(&self) -> i32 {
+impl From<NulError> for KDFError {
+    fn from(e: NulError) -> Self {
+        KDFError::NulError(e)
+    }
+}
+
+impl From<ErrorStack> for KDFError {
+    fn from(e: ErrorStack) -> Self {
+        KDFError::SSL(e)
+    }
+}
+
+impl fmt::Display for KDFError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use KDFError::*;
         match self {
-            KdfType::KeyBased => 1204,
+            Utf8Error(ref e) => e.fmt(f),
+            NulError(ref e) => e.fmt(f),
+            NoSuchKDF => write!(f, "No such KDF"),
+            SSL(ref e) => e.fmt(f),
         }
     }
 }
 
-#[derive(Debug)]
-#[repr(i32)]
-pub enum KdfMacType {
-    Hmac = 0,
-    Cmac = 1,
+impl error::Error for KDFError {}
+
+pub trait KDFParams {
+    fn kdf_name(&self) -> String;
+    fn to_params(&self) -> Result<Params, KDFError>;
 }
 
-impl Kdf {
-    pub fn new(type_: KdfType) -> Result<Self> {
-        unsafe {
-            let kdf = Kdf::from_ptr(cvt_p(ffi::EVP_KDF_CTX_new_id(type_.type_id()))?);
-            Ok(kdf)
-        }
-    }
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Mode {
+    Counter,
+    Feedback,
+}
 
-    pub fn reset(&self) {
-        unsafe { ffi::EVP_KDF_reset(self.as_ptr()) }
-    }
+const COUNTER: &'static [u8] = b"counter\0";
+const FEEDBACK: &'static [u8] = b"feedback\0";
 
-    pub fn set_kb_mode(&self, mode: KdfKbMode) -> Result<i32> {
-        unsafe {
-            cvt(ffi::EVP_KDF_ctrl(
-                self.as_ptr(),
-                KdfControlOption::SetKbMode as i32,
-                mode as i32,
-            ))
-        }
-    }
-
-    pub fn set_kb_mac_type(&self, mac_type: KdfMacType) -> Result<i32> {
-        unsafe {
-            cvt(ffi::EVP_KDF_ctrl(
-                self.as_ptr(),
-                KdfControlOption::SetKbMacType as i32,
-                mac_type as i32,
-            ))
-        }
-    }
-
-    pub fn set_salt(&self, salt: &[u8]) -> Result<i32> {
-        unsafe {
-            cvt(ffi::EVP_KDF_ctrl(
-                self.as_ptr(),
-                KdfControlOption::SetSalt as i32,
-                salt.as_ptr(),
-                salt.len(),
-            ))
-        }
-    }
-
-    pub fn set_kb_info(&self, context: &[u8]) -> Result<i32> {
-        unsafe {
-            cvt(ffi::EVP_KDF_ctrl(
-                self.as_ptr(),
-                KdfControlOption::SetKbInfo as i32,
-                context.as_ptr(),
-                context.len(),
-            ))
-        }
-    }
-
-    pub fn set_key(&self, key: &[u8]) -> Result<i32> {
-        unsafe {
-            cvt(ffi::EVP_KDF_ctrl(
-                self.as_ptr(),
-                KdfControlOption::SetKey as i32,
-                key.as_ptr(),
-                key.len(),
-            ))
-        }
-    }
-
-    pub fn set_digest(&self, digest: MessageDigest) -> Result<i32> {
-        unsafe {
-            cvt(ffi::EVP_KDF_ctrl(
-                self.as_ptr(),
-                KdfControlOption::SetMd as i32,
-                digest.as_ptr(),
-            ))
-        }
-    }
-
-    pub fn derive(&self, key_len: usize) -> Result<Vec<u8>> {
-        unsafe {
-            let mut key_out: Vec<u8> = vec![0; key_len];
-            cvt(ffi::EVP_KDF_derive(
-                self.as_ptr(),
-                key_out.as_mut_ptr(),
-                key_len,
-            ))?;
-            Ok(key_out)
+impl Mode {
+    fn to_param(&self) -> &'static [u8] {
+        use Mode::*;
+        match self {
+            Counter => COUNTER,
+            Feedback => FEEDBACK,
         }
     }
 }
 
-pub(crate) fn cvt_p<T>(r: *mut T) -> Result<*mut T> {
-    if r.is_null() {
-        Err(ErrorStack::get())
-    } else {
-        Ok(r)
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Mac {
+    Hmac,
+    Cmac,
+}
+
+const HMAC: &'static [u8] = b"HMAC\0";
+const CMAC: &'static [u8] = b"CMAC\0";
+
+impl Mac {
+    fn to_param(&self) -> &'static [u8] {
+        use Mac::*;
+        match self {
+            Hmac => HMAC,
+            Cmac => CMAC,
+        }
     }
 }
 
-pub(crate) fn cvt(r: c_int) -> Result<c_int> {
-    if r <= 0 {
-        Err(ErrorStack::get())
-    } else {
-        Ok(r)
+#[derive(Clone, PartialEq, Eq)]
+pub struct KBKDF {
+    md: MessageDigest,
+    mode: Mode,
+    mac: Mac,
+    salt: Vec<u8>,
+    key: Vec<u8>,
+    context: Vec<u8>,
+    use_l: bool,
+    use_separator: bool,
+}
+
+impl KBKDF {
+    pub fn new(md: MessageDigest, salt: Vec<u8>, key: Vec<u8>) -> KBKDF {
+        let mode = Mode::Counter;
+        let mac = Mac::Hmac;
+        let use_l = true;
+        let use_separator = true;
+        let context = Vec::new();
+
+        KBKDF {
+            md,
+            salt,
+            key,
+            mode,
+            context,
+            mac,
+            use_l,
+            use_separator,
+        }
+    }
+
+    pub fn set_mode(mut self, mode: Mode) {
+        self.mode = mode;
+    }
+
+    pub fn set_mac(mut self, mac: Mac) {
+        self.mac = mac;
+    }
+
+    pub fn set_context(mut self, context: Vec<u8>) {
+        self.context = context;
+    }
+
+    pub fn set_l(mut self, l: bool) {
+        self.use_l = l;
+    }
+
+    pub fn set_separator(mut self, separator: bool) {
+        self.use_separator = separator;
     }
 }
+
+impl KDFParams for KBKDF {
+    fn kdf_name(&self) -> String {
+        String::from("KBKDF")
+    }
+
+    fn to_params(&self) -> Result<Params, KDFError> {
+        let mut params = ParamsBuilder::with_capacity(8);
+        let md_name = unsafe { cvt_cp(ffi::EVP_MD_name(self.md.as_ptr())) }?;
+        let md_name = unsafe { CStr::from_ptr(md_name) }.to_bytes();
+
+        params.add_string(ffi::OSSL_KDF_PARAM_DIGEST, md_name)?;
+        params.add_string(ffi::OSSL_KDF_PARAM_MAC, self.mac.to_param())?;
+        params.add_string(ffi::OSSL_KDF_PARAM_MODE, self.mode.to_param())?;
+        params.add_slice(ffi::OSSL_KDF_PARAM_KEY, &self.key)?;
+        params.add_slice(ffi::OSSL_KDF_PARAM_SALT, &self.salt)?;
+        if self.context.len() > 0 {
+            params.add_slice(ffi::OSSL_KDF_PARAM_INFO, &self.context)?;
+        }
+        if self.use_l {
+            params.add_i32(ffi::OSSL_KDF_PARAM_KBKDF_USE_L, 1)?;
+        } else {
+            params.add_i32(ffi::OSSL_KDF_PARAM_KBKDF_USE_L, 0)?;
+        }
+
+        if self.use_separator {
+            params.add_i32(ffi::OSSL_KDF_PARAM_KBKDF_USE_SEPARATOR, 1)?;
+        } else {
+            params.add_i32(ffi::OSSL_KDF_PARAM_KBKDF_USE_SEPARATOR, 0)?;
+        }
+
+        Ok(params.build())
+    }
+}
+
+pub fn derive<P: KDFParams>(kdf: P, output: &mut [u8]) -> Result<(), KDFError> {
+    ffi::init();
+
+    let name = kdf.kdf_name();
+    let name = CString::new(name.as_bytes())?;
+    let name = name.as_bytes_with_nul();
+
+    let kdf_ptr = unsafe {
+        let ptr = ffi::EVP_KDF_fetch(ptr::null_mut(), name.as_ptr() as *const i8, ptr::null());
+        if ptr.is_null() {
+            Err(KDFError::NoSuchKDF)
+        } else {
+            Ok(ptr)
+        }
+    }?;
+
+    let mut ctx = KDFContext::new(kdf_ptr)?;
+    let mut params = kdf.to_params()?;
+
+    // TODO: Check EVP_KDF_CTX_get_kdf_size ?
+    unsafe {
+        cvt(ffi::EVP_KDF_derive(
+            ctx.as_mut_ptr(),
+            output.as_mut_ptr(),
+            output.len(),
+            params.as_ptr(),
+        ))?
+    };
+    drop(params);
+
+    Ok(())
+}
+
+struct KDFContext(*mut ffi::EVP_KDF_CTX);
+
+impl KDFContext {
+    fn new(kdf: *mut ffi::EVP_KDF) -> Result<Self, ErrorStack> {
+        let ctx = unsafe { cvt_p(ffi::EVP_KDF_CTX_new(kdf))? };
+        Ok(KDFContext(ctx))
+    }
+}
+
+impl KDFContext {
+    fn as_mut_ptr(&mut self) -> *mut ffi::EVP_KDF_CTX {
+        self.0
+    }
+}
+
+impl Drop for KDFContext {
+    fn drop(&mut self) {
+        unsafe { ffi::EVP_KDF_CTX_free(self.0) };
+    }
+}
+
+#[cfg(test)]
+mod tests {}
