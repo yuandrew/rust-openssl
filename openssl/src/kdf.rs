@@ -124,23 +124,23 @@ impl KBKDF {
         }
     }
 
-    pub fn set_mode(mut self, mode: Mode) {
+    pub fn set_mode(&mut self, mode: Mode) {
         self.mode = mode;
     }
 
-    pub fn set_mac(mut self, mac: Mac) {
+    pub fn set_mac(&mut self, mac: Mac) {
         self.mac = mac;
     }
 
-    pub fn set_context(mut self, context: Vec<u8>) {
+    pub fn set_context(&mut self, context: Vec<u8>) {
         self.context = context;
     }
 
-    pub fn set_l(mut self, l: bool) {
+    pub fn set_l(&mut self, l: bool) {
         self.use_l = l;
     }
 
-    pub fn set_separator(mut self, separator: bool) {
+    pub fn set_separator(&mut self, separator: bool) {
         self.use_separator = separator;
     }
 }
@@ -152,7 +152,7 @@ impl KDFParams for KBKDF {
 
     fn to_params(&self) -> Result<Params, KDFError> {
         let mut params = ParamsBuilder::with_capacity(8);
-        let md_name = unsafe { cvt_cp(ffi::EVP_MD_name(self.md.as_ptr())) }?;
+        let md_name = unsafe { cvt_cp(ffi::EVP_MD_get0_name(self.md.as_ptr())) }?;
         let md_name = unsafe { CStr::from_ptr(md_name) }.to_bytes();
 
         params.add_string(ffi::OSSL_KDF_PARAM_DIGEST, md_name)?;

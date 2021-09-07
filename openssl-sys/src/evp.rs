@@ -107,7 +107,7 @@ cfg_if! {
 cfg_if! {
     if #[cfg(ossl300)] {
         extern "C" {
-            pub fn EVP_MD_name(md: *const EVP_MD) -> *const c_char;
+            pub fn EVP_MD_get0_name(md: *const EVP_MD) -> *const c_char;
         }
     }
 }
