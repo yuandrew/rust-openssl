@@ -11,7 +11,7 @@ extern "C" {
     pub fn OSSL_PARAM_get_int64(p: *const OSSL_PARAM, val: *mut i64) -> c_int;
     pub fn OSSL_PARAM_get_uint64(p: *const OSSL_PARAM, val: *mut u64) -> c_int;
     pub fn OSSL_PARAM_get_size_t(p: *const OSSL_PARAM, val: *mut size_t) -> c_int;
-    pub fn OSSL_PARAM_get_time_t(p: *const OSSL_PARAM, val: *mut time_t) -> c_int;
+    pub fn OSSL_PARAM_get_time_t(p: *const OSSL_PARAM, val: *mut i64) -> c_int;
 
     pub fn OSSL_PARAM_set_int(p: *mut OSSL_PARAM, val: c_int) -> c_int;
     pub fn OSSL_PARAM_set_uint(p: *mut OSSL_PARAM, val: c_uint) -> c_int;
@@ -22,7 +22,7 @@ extern "C" {
     pub fn OSSL_PARAM_set_int64(p: *mut OSSL_PARAM, val: i64) -> c_int;
     pub fn OSSL_PARAM_set_uint64(p: *mut OSSL_PARAM, val: u64) -> c_int;
     pub fn OSSL_PARAM_set_size_t(p: *mut OSSL_PARAM, val: size_t) -> c_int;
-    pub fn OSSL_PARAM_set_time_t(p: *mut OSSL_PARAM, val: time_t) -> c_int;
+    pub fn OSSL_PARAM_set_time_t(p: *mut OSSL_PARAM, val: i64) -> c_int;
 
     pub fn OSSL_PARAM_get_BN(p: *const OSSL_PARAM, val: *mut *mut BIGNUM) -> c_int;
     pub fn OSSL_PARAM_set_BN(p: *mut OSSL_PARAM, val: *const *mut BIGNUM) -> c_int;
@@ -77,7 +77,7 @@ extern "C" {
     pub fn OSSL_PARAM_construct_uint64(key: *const c_char, buf: *mut u64) -> OSSL_PARAM;
 
     pub fn OSSL_PARAM_construct_size_t(key: *const c_char, buf: *mut size_t) -> OSSL_PARAM;
-    pub fn OSSL_PARAM_construct_time_t(key: *const c_char, buf: *mut time_t) -> OSSL_PARAM;
+    pub fn OSSL_PARAM_construct_time_t(key: *const c_char, buf: *mut i64) -> OSSL_PARAM;
 
     pub fn OSSL_PARAM_construct_utf8_string(
         key: *const c_char,

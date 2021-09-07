@@ -26,7 +26,7 @@
 //! ```
 use cfg_if::cfg_if;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_char, c_int, c_long, time_t};
+use libc::{c_char, c_int, c_long};
 #[cfg(ossl102)]
 use std::cmp::Ordering;
 use std::ffi::CString;
@@ -330,7 +330,7 @@ impl Asn1Time {
     }
 
     /// Creates a new time from the specified `time_t` value
-    pub fn from_unix(time: time_t) -> Result<Asn1Time, ErrorStack> {
+    pub fn from_unix(time: i64) -> Result<Asn1Time, ErrorStack> {
         ffi::init();
 
         unsafe {
